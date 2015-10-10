@@ -5,53 +5,59 @@
     <title></title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/bower_components/jquery/dist/jquery.min.js"></script>
-    <script src="/bower_components/d3/d3.min.js"></script>
-    <script src="/bower_components/epoch/dist/js/epoch.min.js"></script>
     <script type="text/javascript">
+      function visualizeDeviceorientation(data) {
+        // gamma is the left-to-right tilt in degrees, where right is positive
+        var tiltLR = data.data.gamma;
+
+        // beta is the front-to-back tilt in degrees, where front is positive
+        var tiltFB = data.data.beta;
+
+        // alpha is the compass direction the device is facing in degrees
+        var dir = data.data.alpha
+
+        // Apply the transform to the image
+        var logo = document.getElementById("dev"+data.controller);
+        logo.style.webkitTransform =
+          "rotate("+ tiltLR +"deg) rotate3d(1,0,0, "+ (tiltFB*-1)+"deg)";
+        logo.style.MozTransform = "rotate("+ tiltLR +"deg)";
+        logo.style.transform =
+          "rotate("+ tiltLR +"deg) rotate3d(1,0,0, "+ (tiltFB*-1)+"deg)";
+      }
+
       var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
 
       window.addEventListener('devicemotion', function(event) {
-        console.log(event.acceleration.x + ' m/s2');
         socket.emit('devicemotion', event.acceleration);
       });
 
-      $(document).ready(function(){
-        var t = Date.now();
-        var myChart = $('#myChart').epoch({
-          type: 'time.line',
-          queueSize: 1,
-          historySize: 1,
-          data: [
-            { label: 'X', values: [ {time: t, y: 0} ] },
-            { label: 'Y', values: [ {time: t, y: 0} ] },
-            { label: 'Z', values: [ {time: t, y: 0} ] }
-          ]
+      if (window.DeviceOrientationEvent) {
+        socket.emit('registerController');
+        socket.on('registeredController', function(controller){
+          window.addEventListener('deviceorientation', function(data) {
+            socket.emit('deviceorientation', data);
+            visualizeDeviceorientation({controller: controller, data: data});
+          }, false);
         });
-        function norm(v) {
-          var value = v;
-          if (value < 0) {
-            value = value * -1;
-          }
-          value = "" + value;
-          value = parseInt(value);
-          return value;
-        }
+      }
 
-        socket.on('visualize', function (data) {
-          if (data) {
-            var t = Date.now();
-            myChart.push([
-              {time: t, y: norm(data.x)},
-              {time: t, y: norm(data.y)},
-              {time: t, y: norm(data.z)}
-            ]);
-          }
-        });
-      })
+      $(document).ready(function(){
+        socket.on('visualizeDeviceorientation', visualizeDeviceorientation);
+      });
     </script>
-    <link rel="stylesheet" type="text/css" href="/bower_components/epoch/dist/css/epoch.min.css">
+    <style media="screen">
+      .container { float: left; width: 30%; text-align: center; }
+    </style>
   </head>
   <body>
-    <div id="myChart" style="width: 80%; height: 100px"></div>
+    <div class="container" style="perspective: 300;">
+      <img src="/device.jpg" id="dev0" class="logo">
+    </div>
+    <div class="container" style="perspective: 300;">
+      <img src="/device.jpg" id="dev1" class="logo">
+    </div>
+    <div class="container" style="perspective: 300;">
+      <img src="/device.jpg" id="dev2" class="logo">
+    </div>
   </body>
 </html>
