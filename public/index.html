@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript">
+      var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
+
+      window.addEventListener('devicemotion', function(event) {
+        console.log(event.acceleration.x + ' m/s2');
+        socket.emit('devicemotion', event.acceleration);
+      });
+
+      socket.on('visualize', function (data) {
+        if (data) {
+          var x = data.z * 255;
+          if (x < 0) {
+            x = x * -1;
+          }
+          x = parseInt(""+x);
+          console.log(x);
+          document.body.style.background = `rgb(${x},${x},${x})`;
+        }
+      });
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
