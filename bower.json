@@ -1,0 +1,19 @@
+{
+  "name": "motion",
+  "version": "0.0.0",
+  "authors": [
+    "Jens Bissinger <mail@jens-bissinger.de>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "epoch": "~0.8.0",
+    "jquery": "~2.1.4"
+  }
+}

@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <title></title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="/bower_components/d3/d3.min.js"></script>
+    <script src="/bower_components/epoch/dist/js/epoch.min.js"></script>
     <script type="text/javascript">
       var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
 
@@ -12,19 +15,43 @@
         socket.emit('devicemotion', event.acceleration);
       });
 
-      socket.on('visualize', function (data) {
-        if (data) {
-          var x = data.z * 255;
-          if (x < 0) {
-            x = x * -1;
+      $(document).ready(function(){
+        var t = Date.now();
+        var myChart = $('#myChart').epoch({
+          type: 'time.line',
+          queueSize: 1,
+          historySize: 1,
+          data: [
+            { label: 'X', values: [ {time: t, y: 0} ] },
+            { label: 'Y', values: [ {time: t, y: 0} ] },
+            { label: 'Z', values: [ {time: t, y: 0} ] }
+          ]
+        });
+        function norm(v) {
+          var value = v;
+          if (value < 0) {
+            value = value * -1;
           }
-          x = parseInt(""+x);
-          console.log(x);
-          document.body.style.background = `rgb(${x},${x},${x})`;
+          value = "" + value;
+          value = parseInt(value);
+          return value;
         }
-      });
+
+        socket.on('visualize', function (data) {
+          if (data) {
+            var t = Date.now();
+            myChart.push([
+              {time: t, y: norm(data.x)},
+              {time: t, y: norm(data.y)},
+              {time: t, y: norm(data.z)}
+            ]);
+          }
+        });
+      })
     </script>
+    <link rel="stylesheet" type="text/css" href="/bower_components/epoch/dist/css/epoch.min.css">
   </head>
   <body>
+    <div id="myChart" style="width: 80%; height: 100px"></div>
   </body>
 </html>
