@@ -7,29 +7,17 @@
     <script src="/bower_components/jquery/dist/jquery.min.js"></script>
     <script type="text/javascript">
       function visualizeDeviceorientation(data) {
-        // gamma is the left-to-right tilt in degrees, where right is positive
+        // gamma is the left-to-right tilt in degrees, where right is positive // 90
         var tiltLR = data.data.gamma;
 
-        // beta is the front-to-back tilt in degrees, where front is positive
+        // beta is the front-to-back tilt in degrees, where front is positive // 180
         var tiltFB = data.data.beta;
 
         // alpha is the compass direction the device is facing in degrees
         var dir = data.data.alpha
-
-        // Apply the transform to the image
-        var logo = document.getElementById("dev"+data.controller);
-        logo.style.webkitTransform =
-          "rotate("+ tiltLR +"deg) rotate3d(1,0,0, "+ (tiltFB*-1)+"deg)";
-        logo.style.MozTransform = "rotate("+ tiltLR +"deg)";
-        logo.style.transform =
-          "rotate("+ tiltLR +"deg) rotate3d(1,0,0, "+ (tiltFB*-1)+"deg)";
       }
 
       var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
-
-      window.addEventListener('devicemotion', function(event) {
-        socket.emit('devicemotion', event.acceleration);
-      });
 
       if (window.DeviceOrientationEvent) {
         socket.emit('registerController');
@@ -41,23 +29,44 @@
         });
       }
 
+      function resizeCanvas() {
+        $('#canvas')
+          .attr('width', document.documentElement.clientWidth)
+          .attr('height', document.documentElement.clientHeight);
+      }
+
+      function drawCursor(ctx, x, y) {
+        ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+        ctx.fillStyle = "#FF0000";
+        ctx.fillRect(x-10, y, 25, 5);
+        ctx.fillRect(x, y-10, 5, 25);
+      }
+
       $(document).ready(function(){
-        socket.on('visualizeDeviceorientation', visualizeDeviceorientation);
+        $(window).on('resize', resizeCanvas);
+        resizeCanvas();
+        var c = document.getElementById("canvas");
+        var ctx = c.getContext("2d");
+
+        socket.on('visualizeDeviceorientation', function(event){
+          var x = window.innerWidth - window.innerWidth / 360 * (event.data.alpha);
+          var y = window.innerHeight - window.innerHeight / 360 * (event.data.beta + 180);
+          drawCursor(ctx, x, y);
+        });
+
+        // window.addEventListener('deviceorientation', function(event) {
+        //   var x = window.innerHeight / 180 * (event.gamma + 90);
+        //   var y = window.innerWidth / 360 * (event.beta + 180);
+        //   drawCursor(ctx, x, y);
+        // }, false);
+
       });
     </script>
     <style media="screen">
-      .container { float: left; width: 30%; text-align: center; }
+      body { margin: 0; }
     </style>
   </head>
   <body>
-    <div class="container" style="perspective: 300;">
-      <img src="/device.jpg" id="dev0" class="logo">
-    </div>
-    <div class="container" style="perspective: 300;">
-      <img src="/device.jpg" id="dev1" class="logo">
-    </div>
-    <div class="container" style="perspective: 300;">
-      <img src="/device.jpg" id="dev2" class="logo">
-    </div>
+    <canvas id="canvas"></canvas>
   </body>
 </html>
