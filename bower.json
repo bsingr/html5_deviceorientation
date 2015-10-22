@@ -13,7 +13,6 @@
     "tests"
   ],
   "dependencies": {
-    "epoch": "~0.8.0",
     "jquery": "~2.1.4"
   }
 }
