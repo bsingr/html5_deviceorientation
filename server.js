@@ -19,7 +19,6 @@ io.on('connection', function (socket) {
     controllers++;
     controllers = controllers % 3;
     var controller = controllers;
-    console.log(controller);
 
     socket.emit('registeredController', controller);
 

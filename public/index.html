@@ -9,6 +9,31 @@
     <script type="text/javascript">
       var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
 
+      function Box() {
+        var geometry = new THREE.BoxGeometry( 0.5, 3, 0.2 );
+        var material = new THREE.MeshNormalMaterial( { } );
+        var cube = new THREE.Mesh( geometry, material );
+        cube.rotation.reorder( "YXZ" );
+
+        var zee = new THREE.Vector3( 0, 0, 1 );
+        var euler = new THREE.Euler();
+        var q0 = new THREE.Quaternion();
+        var q1 = new THREE.Quaternion( - Math.sqrt( 0.5 ), 0, 0, Math.sqrt( 0.5 ) ); // - PI/2 around the x-axis
+
+        this.update = function(e) {
+          var alpha  = e.alpha ? THREE.Math.degToRad( e.alpha ) : 0; // Z
+          var beta   = e.beta  ? THREE.Math.degToRad( e.beta  ) : 0; // X'
+          var gamma  = e.gamma ? THREE.Math.degToRad( e.gamma ) : 0; // Y''
+          euler.set( beta, alpha, - gamma, 'YXZ' );  // 'ZXY' for the device, but 'YXZ' for us
+    			cube.quaternion.setFromEuler( euler );     // orient the device
+    			cube.quaternion.multiply( q1 );            // camera looks out the back of the device, not the top
+        }
+
+        this.model = function() {
+          return cube;
+        }
+      }
+
       $(document).ready(function(){
         var scene = new THREE.Scene();
     		var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
@@ -17,44 +42,34 @@
     		renderer.setSize( window.innerWidth, window.innerHeight );
     		document.body.appendChild( renderer.domElement );
 
-    		var geometry = new THREE.BoxGeometry( 0.5, 3, 0.2 );
-    		var material = new THREE.MeshNormalMaterial( { } );
-    		var cube = new THREE.Mesh( geometry, material );
-        cube.rotation.reorder( "YXZ" );
-    		scene.add( cube );
-
     		camera.position.z = 5;
 
     		var render = function () {
     			requestAnimationFrame( render );
-
     			renderer.render(scene, camera);
     		};
 
     		render();
 
-        var zee = new THREE.Vector3( 0, 0, 1 );
-    		var euler = new THREE.Euler();
-    		var q0 = new THREE.Quaternion();
-    		var q1 = new THREE.Quaternion( - Math.sqrt( 0.5 ), 0, 0, Math.sqrt( 0.5 ) ); // - PI/2 around the x-axis
+        var boxes = [];
 
         function visualizeDeviceorientation(event) {
-          var alpha  = event.data.alpha ? THREE.Math.degToRad( event.data.alpha ) : 0; // Z
-          var beta   = event.data.beta  ? THREE.Math.degToRad( event.data.beta  ) : 0; // X'
-          var gamma  = event.data.gamma ? THREE.Math.degToRad( event.data.gamma ) : 0; // Y''
-          euler.set( beta, alpha, - gamma, 'YXZ' );  // 'ZXY' for the device, but 'YXZ' for us
-    			cube.quaternion.setFromEuler( euler );     // orient the device
-    			cube.quaternion.multiply( q1 );            // camera looks out the back of the device, not the top
+          var box = boxes[event.controller];
+          if (!box) {
+            box = new Box();
+            boxes.push(box);
+            scene.add(box.model());
+          }
+          if (event.data) {
+            box.update(event.data);
+          }
         }
 
         socket.on('visualizeDeviceorientation', visualizeDeviceorientation);
 
-        window.addEventListener('deviceorientation', function(event) {
-          visualizeDeviceorientation({data: event});
-        }, false);
-
         if (window.DeviceOrientationEvent) {
           socket.emit('registerController');
+
           socket.on('registeredController', function(controller){
             window.addEventListener('deviceorientation', function(data) {
               socket.emit('deviceorientation', data);
@@ -62,6 +77,7 @@
             }, false);
           });
         }
+
       });
 
 
