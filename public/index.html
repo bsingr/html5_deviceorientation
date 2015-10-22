@@ -5,90 +5,72 @@
     <title></title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="/bower_components/three.js/three.min.js"></script>
     <script type="text/javascript">
-      function visualizeDeviceorientation(data) {
-        // gamma is the left-to-right tilt in degrees, where right is positive // 90
-        var tiltLR = data.data.gamma;
-
-        // beta is the front-to-back tilt in degrees, where front is positive // 180
-        var tiltFB = data.data.beta;
-
-        // alpha is the compass direction the device is facing in degrees
-        var dir = data.data.alpha
-      }
-
       var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
 
-      if (window.DeviceOrientationEvent) {
-        socket.emit('registerController');
-        socket.on('registeredController', function(controller){
-          window.addEventListener('deviceorientation', function(data) {
-            socket.emit('deviceorientation', data);
-            visualizeDeviceorientation({controller: controller, data: data});
-          }, false);
-        });
-      }
-
-      function resizeCanvas() {
-        $('#canvas')
-          .attr('width', document.documentElement.clientWidth)
-          .attr('height', document.documentElement.clientHeight);
-      }
-
-      function Cursor(ctx) {
-        var historySize = 200;
-        var positions = [];
-
-        function draw() {
-          ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
-          positions.forEach(function(position, i) {
-            ctx.fillStyle = `rgba(255, 128, 128, ${i/2/historySize})`;
-            var x = position.x;
-            var y = position.y;
-            ctx.fillRect(x-10, y, 25, 5);
-            ctx.fillRect(x, y-10, 5, 25);
-          });
-        }
-
-        this.move = function(x,y) {
-          positions.push({x: x, y: y});
-          if (positions.length > historySize) {
-            positions.shift();
-          }
-          draw();
-        }
-      }
-
       $(document).ready(function(){
-        $(window).on('resize', resizeCanvas);
-        resizeCanvas();
-        var c = document.getElementById("canvas");
-        var ctx = c.getContext("2d");
+        var scene = new THREE.Scene();
+    		var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
-        var cursor = new Cursor(ctx);
+    		var renderer = new THREE.WebGLRenderer({ antialias: true });
+    		renderer.setSize( window.innerWidth, window.innerHeight );
+    		document.body.appendChild( renderer.domElement );
 
-        socket.on('visualizeDeviceorientation', function(event){
-          var x = window.innerWidth - window.innerWidth / 120 * (event.data.alpha); // 360
-          var y = window.innerHeight - window.innerHeight / 90 * (event.data.beta); // -+180
-          cursor.move(x, y);
-        });
+    		var geometry = new THREE.BoxGeometry( 0.5, 3, 0.2 );
+    		var material = new THREE.MeshNormalMaterial( { } );
+    		var cube = new THREE.Mesh( geometry, material );
+        cube.rotation.reorder( "YXZ" );
+    		scene.add( cube );
+
+    		camera.position.z = 5;
+
+    		var render = function () {
+    			requestAnimationFrame( render );
+
+    			renderer.render(scene, camera);
+    		};
+
+    		render();
+
+        var zee = new THREE.Vector3( 0, 0, 1 );
+    		var euler = new THREE.Euler();
+    		var q0 = new THREE.Quaternion();
+    		var q1 = new THREE.Quaternion( - Math.sqrt( 0.5 ), 0, 0, Math.sqrt( 0.5 ) ); // - PI/2 around the x-axis
+
+        function visualizeDeviceorientation(event) {
+          var alpha  = event.data.alpha ? THREE.Math.degToRad( event.data.alpha ) : 0; // Z
+          var beta   = event.data.beta  ? THREE.Math.degToRad( event.data.beta  ) : 0; // X'
+          var gamma  = event.data.gamma ? THREE.Math.degToRad( event.data.gamma ) : 0; // Y''
+          euler.set( beta, alpha, - gamma, 'YXZ' );  // 'ZXY' for the device, but 'YXZ' for us
+    			cube.quaternion.setFromEuler( euler );     // orient the device
+    			cube.quaternion.multiply( q1 );            // camera looks out the back of the device, not the top
+        }
+
+        socket.on('visualizeDeviceorientation', visualizeDeviceorientation);
 
         window.addEventListener('deviceorientation', function(event) {
-          var x = window.innerHeight / 180 * (event.gamma + 90);
-          var y = window.innerWidth / 360 * (event.beta + 180);
-          cursor.move(x, y);
+          visualizeDeviceorientation({data: event});
         }, false);
 
-        document.onmousemove = function(event){
-          cursor.move(event.clientX, event.clientY);
-        };
+        if (window.DeviceOrientationEvent) {
+          socket.emit('registerController');
+          socket.on('registeredController', function(controller){
+            window.addEventListener('deviceorientation', function(data) {
+              socket.emit('deviceorientation', data);
+              visualizeDeviceorientation({controller: controller, data: data});
+            }, false);
+          });
+        }
       });
+
+
     </script>
     <style media="screen">
       body { margin: 0; }
+      canvas { width: 100%; height: 100%; }
     </style>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
   </body>
 </html>
