@@ -7,8 +7,6 @@
     <script src="bower_components/jquery/dist/jquery.min.js"></script>
     <script src="bower_components/three.js/three.min.js"></script>
     <script type="text/javascript">
-      var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
-
       function Box() {
         var geometry = new THREE.BoxGeometry( 0.5, 3, 0.2 );
         var material = new THREE.MeshNormalMaterial( { } );
@@ -34,7 +32,7 @@
         }
       }
 
-      $(document).ready(function(){
+      function Visualization() {
         var scene = new THREE.Scene();
     		var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 
@@ -53,7 +51,7 @@
 
         var boxes = [];
 
-        function visualizeDeviceorientation(event) {
+        this.update = function(event) {
           var box = boxes[event.controller];
           if (!box) {
             box = new Box();
@@ -63,21 +61,32 @@
           if (event.data) {
             box.update(event.data);
           }
-        }
+        };
+      }
 
-        socket.on('visualizeDeviceorientation', visualizeDeviceorientation);
+      $(document).ready(function(){
+        var visualization = new Visualization();
 
-        if (window.DeviceOrientationEvent) {
-          socket.emit('registerController');
-
-          socket.on('registeredController', function(controller){
-            window.addEventListener('deviceorientation', function(data) {
-              socket.emit('deviceorientation', data);
-              visualizeDeviceorientation({controller: controller, data: data});
-            }, false);
+        if (io) {
+          var socket = io.connect('http://'+window.location.hostname+':'+window.location.port);
+          socket.on('visualizeDeviceorientation', function(event){
+            visualization.update(event);
           });
-        }
 
+          if (window.DeviceOrientationEvent) {
+            socket.emit('registerController');
+
+            socket.on('registeredController', function(controller){
+              window.addEventListener('deviceorientation', function(data) {
+                socket.emit('deviceorientation', data);
+              }, false);
+            });
+
+            window.addEventListener('deviceorientation', function(data) {
+              visualization.update({controller: controller, data: data});
+            }, false);
+          }
+        }
       });
 
 
